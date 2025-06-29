@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Colheita Mágica</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: sans-serif;
+      overflow: hidden;
+    }
+    #game {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      background: linear-gradient(to top, #3a9d23, #87ceeb);
+      transition: background 2s;
+      display: none;
+    }
+    .fruit, .bird {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+    }
+    .fruit img, .bird img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    #basket {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 60px;
+      height: 60px;
+      z-index: 10;
+    }
+    #basket img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    #hud {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(255, 255, 255, 0.6);
+      padding: 10px;
+      border-radius: 8px;
+      z-index: 20;
+    }
+    #startBtn {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 20px;
+      padding: 12px 24px;
+      z-index: 1000;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <button id="startBtn">Iniciar Jogo</button>
+
+  <div id="game">
+    <div id="basket">
+      <img src="player.png" alt="Cesto">
+    </div>
+    <div id="hud">Pontuação: <span id="score">0</span> | Fase: <span id="level">1</span></div>
+
+    <!-- Sons -->
+    <audio id="tema" src="tematica.mp3" loop></audio>
+    <audio id="somFruta" src="somfruta.mp3"></audio>
+    <audio id="somPassaro" src="barulho.mp3"></audio>
+    <audio id="somDia" src="somgalinha-dia.mp3"></audio>
+    <audio id="somNoite" src="somlobo2-noite.mp3"></audio>
+    <audio id="somAmbienteDia" src="sompassaro-dia.mp3" loop></audio>
+    <audio id="somAmbienteNoite" src="somlobo-noite.mp3" loop></audio>
+    <audio id="somVitoria" src="somvitoria.mp3"></audio>
+  </div>
+
+  <script>
+    const game = document.getElementById('game');
+    const basket = document.getElementById('basket');
+    const scoreEl = document.getElementById('score');
+    const levelEl = document.getElementById('level');
+
+    // Sons
+    const audioTema = document.getElementById('tema');
+    const somFruta = document.getElementById('somFruta');
+    const somPassaro = document.getElementById('somPassaro');
+    const somDia = document.getElementById('somDia');
+    const somNoite = document.getElementById('somNoite');
+    const somAmbienteDia = document.getElementById('somAmbienteDia');
+    const somAmbienteNoite = document.getElementById('somAmbienteNoite');
+    const somVitoria = document.getElementById('somVitoria');
+
+    const startBtn = document.getElementById('startBtn');
+
+    let score = 0;
+    let level = 1;
+    let day = true;
+
+    startBtn.addEventListener('click', () => {
+      startBtn.style.display = 'none';
+      game.style.display = 'block';
+
+      // Inicia sons permitidos
+      audioTema.play();
+      somAmbienteDia.play();
+
+      setInterval(() => spawn('fruit'), 1000);
+      setInterval(() => spawn('bird'), 3000);
+    });
+
+    function randomX() {
+      return Math.random() * (window.innerWidth - 40);
+    }
+
+    function spawn(type) {
+      const el = document.createElement('div');
+      el.classList.add(type);
+
+      const img = document.createElement('img');
+      img.src = type === 'fruit'
+        ? (Math.random() < 0.5 ? 'fruit.png' : 'fruit2.png')
+        : (Math.random() < 0.5 ? 'bird.png' : 'bird2.png');
+      img.alt = type;
+      el.appendChild(img);
+
+      el.style.left = `${randomX()}px`;
+      el.style.top = '-40px';
+      game.appendChild(el);
+
+      let speed = level + (type === 'bird' ? 2 : 1);
+      let interval = setInterval(() => {
+        let top = parseInt(el.style.top);
+        el.style.top = `${top + speed}px`;
+
+        const rect1 = el.getBoundingClientRect();
+        const rect2 = basket.getBoundingClientRect();
+
+        if (
+          rect1.bottom > rect2.top &&
+          rect1.top < rect2.bottom &&
+          rect1.left < rect2.right &&
+          rect1.right > rect2.left
+        ) {
+          if (type === 'fruit') {
+            score++;
+            scoreEl.textContent = score;
+            somFruta.currentTime = 0;
+            somFruta.play();
+
+            if (score % 10 === 0) {
+              level++;
+              levelEl.textContent = level;
+              changeTimeOfDay();
+
+              if (score === 30) somVitoria.play();
+            }
+          } else {
+            somPassaro.currentTime = 0;
+            somPassaro.play();
+            alert('Você foi atingido por um pássaro! Fim de jogo.');
+            window.location.reload();
+          }
+          game.removeChild(el);
+          clearInterval(interval);
+        }
+
+        if (top > window.innerHeight) {
+          game.removeChild(el);
+          clearInterval(interval);
+        }
+      }, 30);
+    }
+
+    function changeTimeOfDay() {
+      day = !day;
+
+      if (day) {
+        game.style.background = 'linear-gradient(to top, #3a9d23, #87ceeb)';
+        somAmbienteNoite.pause();
+        somAmbienteDia.currentTime = 0;
+        somAmbienteDia.play();
+        somDia.currentTime = 0;
+        somDia.play();
+      } else {
+        game.style.background = 'linear-gradient(to top, #1d2b36, #0f0f3e)';
+        somAmbienteDia.pause();
+        somAmbienteNoite.currentTime = 0;
+        somAmbienteNoite.play();
+        somNoite.currentTime = 0;
+        somNoite.play();
+      }
+    }
+
+    window.addEventListener('mousemove', (e) => {
+      basket.style.left = `${e.clientX - 30}px`;
+    });
+  </script>
+</body>
+</html>
